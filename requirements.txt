@@ -1,0 +1,8 @@
+dash
+pandas
+plotly
+geopandas
+osmnx
+geopy
+openpyxl
+gunicorn
