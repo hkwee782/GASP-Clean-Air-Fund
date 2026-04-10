@@ -1,1 +1,1 @@
-web: gunicorn charts:server
+web: gunicorn map:server
