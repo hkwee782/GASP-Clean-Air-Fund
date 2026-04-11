@@ -1,11 +1,3 @@
-# GASP-Clean-Air-Fund
-
-1. Go to charts.ipynb
-2. Run all the cells
-3. Copy the HTML code beneath each graph
-4. Add the HTML to Wix
-
-
 # GASP Clean Air Fund — Grant Allocation Dashboard
 
 This project was developed for the **Group Against Smog and Pollution (GASP)**, a prominent Pittsburgh-based non-profit organization founded in 1969, dedicated to fighting for clean air in Southwestern Pennsylvania.
