@@ -4,3 +4,4 @@ cache/
 geo_cache.json
 ~$*.xlsx
 charts.py
+map.ipynb
