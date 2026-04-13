@@ -22,6 +22,7 @@ Note: The map is hosted on Render's free tier. If the app has been inactive, it 
 | `charts.ipynb` | Jupyter notebook containing all data visualizations and charts analyzing grant spending trends, categories, and organizations. |
 | `charts.html` | Exported HTML version of the charts for easy viewing without running code. |
 | `FinalSheet.xlsx` | The cleaned grant allocation dataset covering 2015–2024, including grant amounts, locations, organizations, categories, and project descriptions. |
+| `RAWData.xlsx` | The raw, original data set containing grant allocations covering 2015–2024, including grant amounts, locations, organizations, categories, and project descriptions highlighted by color.|
 | `geo_cache.json` | Cached geographic boundary data from OpenStreetMap, used to speed up map loading. |
 | `requirements.txt` | Python dependencies required to run the map application. |
 | `Procfile` | Configuration file for Render deployment. |
