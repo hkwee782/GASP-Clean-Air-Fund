@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grant Allocation Funding Over Time</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --border: #e2ddd6;
+    --text: #1a1714;
+    --muted: #7a746c;
+
+    /* Updated to GASP blue palette */
+    --accent: #0172BC;         /* main GASP blue */
+    --accent-light: #3399E6;   /* lighter blue */
+    --accent-pale: #D9EAF8;    /* very light blue for backgrounds */
+    --tag-bg: #E6F2FA;         /* pale blue for tags */
+
+    --shadow: 0 2px 12px rgba(0,0,0,0.07);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .dashboard {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  header {
+    margin-bottom: 36px;
+  }
+
+  header h1 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    color: var(--text);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  header h1 span {
+    color: var(--accent);
+  }
+
+  header p {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 300;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 640px) {
+    .controls { grid-template-columns: 1fr; }
+  }
+
+  .control-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .control-card.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .control-card label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* Toggle pills for time granularity */
+  .toggle-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+
+  .toggle-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .toggle-btn:hover:not(.active) {
+    border-color: var(--accent-light);
+    color: var(--accent);
+  }
+
+  /* Category chips */
+  .chip-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .chip.active {
+    background: var(--tag-bg);
+    border-color: var(--accent-light);
+    color: var(--accent);
+  }
+
+  .chip .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  .chip:hover:not(.active) {
+    border-color: var(--accent-light);
+    color: var(--accent);
+  }
+
+  /* Year pills row */
+  .year-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .year-pill {
+    padding: 5px 13px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .year-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .year-pill:hover:not(.active) {
+    border-color: var(--accent-light);
+    color: var(--accent);
+  }
+
+  /* Select all / none links */
+  .select-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .select-link {
+    font-size: 0.75rem;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    background: none;
+    border: none;
+    font-family: inherit;
+    padding: 0;
+  }
+
+  /* Chart wrapper */
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+
+  #chartDiv {
+    width: 100%;
+    height: 420px;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    flex-direction: column; /* stack boxes vertically by default */
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  @media (min-width: 641px) {
+    .stats-row {
+      flex-direction: row; /* side by side on wider screens */
+    }
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    flex: 1;            /* stretch each box equally */
+    max-width: 100%;    /* ensure it does not exceed container */
+  }
+
+  .stat-card .stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .stat-card .stat-value {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-card .stat-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 18, 16, 0.55);
+    z-index: 1000;
+    backdrop-filter: blur(3px);
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .modal-box {
+    background: var(--surface);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 680px;
+    margin-top: 40px;
+    margin-bottom: 40px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    animation: slideUp 0.22s ease;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--accent);
+    color: white;
+  }
+
+  .modal-header h2 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 400;
+  }
+
+  .modal-header .modal-total {
+    font-size: 0.9rem;
+    opacity: 0.85;
+  }
+
+  .modal-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    line-height: 1;
+  }
+
+  .modal-close:hover { background: rgba(255,255,255,0.35); }
+
+  .modal-body {
+    padding: 20px 24px;
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .grant-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: box-shadow 0.15s;
+  }
+
+  .grant-card:hover { box-shadow: var(--shadow); }
+
+  .grant-card:last-child { margin-bottom: 0; }
+
+  .grant-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .grant-org {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .grant-amount {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.05rem;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+.grant-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;           /* optional: slightly more space between tags */
+  margin-bottom: 8px;
+  align-items: center; /* ensures tags line up nicely with Grant Amount */
+}
+
+.grant-tag {
+  background: var(--tag-bg);
+  color: var(--accent);
+  border-radius: 6px;   /* slightly rounder */
+  padding: 5px 12px;    /* taller and wider box */
+  font-size: 0.85rem;   /* bigger text */
+  font-weight: 600;     /* bolder for readability */
+}
+
+  .grant-meta {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+
+  .grant-desc {
+    font-size: 0.82rem;
+    color: #555;
+    line-height: 1.5;
+  }
+
+  .no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Hint text */
+  .chart-hint {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <header>
+    <h1>Grant Allocation Funding <span>Over Time</span></h1>
+    <p>Allegheny County Clean Air Fund — grant allocations by category and time period</p>
+  </header>
+
+  <!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">TOTAL ALLOCATED ACROSS YEARS</div>
+    <div class="stat-value" id="statTotal">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">GRANTS CURRENTLY SHOWING</div>
+    <div class="stat-value" id="statCount">—</div>
+  </div>
+</div>
+  
+  <!-- Controls -->
+  <div class="controls">
+    <div class="control-card">
+      <label>Time Granularity</label>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btnYear" onclick="setMode('year')">By Year</button>
+        <button class="toggle-btn" id="btnMonth" onclick="setMode('month')">By Month</button>
+      </div>
+    </div>
+
+    <div class="control-card">
+      <label>Years</label>
+      <div class="year-pills" id="yearPills"></div>
+      <div class="select-links">
+        <button class="select-link" onclick="selectAllYears()">All</button>
+        <button class="select-link" onclick="selectNoneYears()">None</button>
+      </div>
+    </div>
+
+    <div class="control-card full-width">
+      <label>Project Categories</label>
+      <div class="chip-container" id="categoryChips"></div>
+      <div class="select-links">
+        <button class="select-link" onclick="selectAllCats()">All</button>
+        <button class="select-link" onclick="selectNoneCats()">None</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-card">
+    <p class="chart-hint">Click any data point to see grant details</p>
+    <div id="chartDiv"></div>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">Grants</h2>
+        <div class="modal-total" id="modalTotal"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const RAW_DATA = [{"year": 2015, "date": "2015-03-04", "month": "2015-03", "amount": 4000.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Kamin Science Center", "desc": "To support the Carnegie Science Center Future Cities Competition ($2,000 per year for 2015 and 2016)."}, {"year": 2015, "date": "2015-05-06", "month": "2015-05", "amount": 50000.0, "cat1": "Tree Planting", "cat2": null, "location": "Lawrenceville, Chateau, Neville Island", "org": "Tree Pittsburgh", "desc": "To plant trees on industrial properties in Lawrenceville, Chateau, and Neville Island; requested by Tree Pittsburgh"}, {"year": 2015, "date": "2015-05-06", "month": "2015-05", "amount": 225000.0, "cat1": "Education/Competition", "cat2": null, "location": "Allegheny County", "org": "ACHD", "desc": "To fund an outreach campaign in response to the revisions to Article XXI Open Burning regulations; the campaign will discourage open burning educate on the health effects of wood smoke"}, {"year": 2015, "date": "2015-07-08", "month": "2015-07", "amount": 337600.0, "cat1": "Public Health/Medicine", "cat2": null, "location": "Northgate School District", "org": "Healthy Homes Program", "desc": "To support the Northgate Asthma Initiative / continue to concentrate the Healthy Homes program on children in the Northgate School District, which has an elevated number of asthmatic children"}, {"year": 2015, "date": "2015-09-02", "month": "2015-09", "amount": 400000.0, "cat1": "Emission Reduction", "cat2": "Diesel Reduction/Electrification", "location": "CCAC Allegheny Campus, CCAC North Campus, CCAC Boyce Campus, CCAC South Campus", "org": "Community College of Allegheny County", "desc": "For the purchase of solar panels to light parking lots and charge electric vehicles at CCAC campuses."}, {"year": 2016, "date": "2016-01-13", "month": "2016-01", "amount": 450000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "To fund 50% of an investment-grade audit for renovation of Clack Building #1 as a potential new location for Air Quality."}, {"year": 2016, "date": "2016-01-13", "month": "2016-01", "amount": 78000.0, "cat1": "Education/Competition", "cat2": null, "location": "Allegheny County", "org": "Student Conservation Association", "desc": "To fund six Student Conservation Association interns for city and county-based climate change group."}, {"year": 2016, "date": "2016-03-02", "month": "2016-03", "amount": 717246.0, "cat1": "Research", "cat2": null, "location": "Monongahela River Valley", "org": "CMU Air Pollution", "desc": "To fund a CMU air pollution modeling project aimed at predicting pollution dispersion in the Mon Valley and understanding air quality under multiple meteorological conditions and emissions scenarios."}, {"year": 2016, "date": "2016-03-02", "month": "2016-03", "amount": 180000.0, "cat1": "Emission Reduction", "cat2": null, "location": "Allegheny County", "org": "Solarize Allegheny", "desc": "To fund Solarize Allegheny, a project promoting residential solar energy options and contacts for contractors; project managed by SmartPower, a national non-profit marketing firm for clean energy."}, {"year": 2016, "date": "2016-03-02", "month": "2016-03", "amount": 50000.0, "cat1": "Emission Reduction", "cat2": null, "location": "Allegheny County", "org": "ACHD", "desc": "Support for the ACHD project incentivizing owners of indoor fireplaces to convert to natural gas instead of burning wood (vendors would receive a rebate and purchasers would get a reduced price)."}, {"year": 2016, "date": "2016-05-04", "month": "2016-05", "amount": 24000.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Allegheny County", "org": "Southwest Pennsylvania Air Quality Partnership", "desc": "To support the Southwest Pennsylvania Air Quality Partnership Lawnmower Exchange Program ($12,000 per year for two years)."}, {"year": 2016, "date": "2016-07-13", "month": "2016-07", "amount": 4000.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Kamin Science Center", "desc": "To support the Carnegie Science Center Future Cities Competition ($2,000 per year for the school years 2016-2017 and 2017-2018)."}, {"year": 2016, "date": "2017-11-02", "month": "2017-11", "amount": 75900.0, "cat1": "Public Communication", "cat2": null, "location": "Allegheny County", "org": "ACHD", "desc": "To launch a new initiative (\"Air-Space\") to generate air quality awareness and community capacity in high priority areas throughout the County; requested by G-tech, which will partner with ACHD."}, {"year": 2017, "date": "2017-01-11", "month": "2017-01", "amount": 7500.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Pittsburgh Regional Science Fair", "desc": "To support the Pittsburgh Regional Science & Engineering Fair ($2,500 per year for 2017, 2018, and 2019)."}, {"year": 2017, "date": "2017-01-11", "month": "2017-01", "amount": 65000.0, "cat1": "Education/Competition", "cat2": null, "location": "Allegheny County", "org": "Student Conservation Association", "desc": "To support placing five Student Conservation Association Sustainability Fellows in environmental organizations."}, {"year": 2018, "date": "2018-03-07", "month": "2018-03", "amount": 45000.0, "cat1": "Operational Funding", "cat2": "Software", "location": "Allegheny County", "org": "Air Quality Program", "desc": "For Air Quality Program software to assist in tracking all aspects of asbestos renovation and demolition activities and stationary source enforcement; this will replace a series of spreadsheets and old software."}, {"year": 2018, "date": "2018-03-07", "month": "2018-03", "amount": 300000.0, "cat1": "Public Communication", "cat2": "Emission Reduction", "location": "Allegheny County", "org": "Several small projects", "desc": "To fund small projects ($10k - $30k) addressing air pollution public education projects and emission reduction projects, with $150,000 going to each of the two categories."}, {"year": 2018, "date": "2018-03-07", "month": "2018-03", "amount": 558242.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Air Quality Program 5% operations funding allocation for the year 2017."}, {"year": 2018, "date": "2018-05-02", "month": "2018-05", "amount": 66000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Construction oversight services for the potential Clack Building #1 renovation project."}, {"year": 2018, "date": "2018-05-02", "month": "2018-05", "amount": 579703.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Air Quality Program 5% operations funding allocation for the year 2018."}, {"year": 2018, "date": "2018-11-07", "month": "2018-11", "amount": 546017.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Air Quality Program 5% operations funding allocation for the year 2019."}, {"year": 2018, "date": "2018-11-07", "month": "2018-11", "amount": 60000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "For Air Quality Program student interns for remainder of 2018 and for 2019."}, {"year": 2019, "date": "2018-01-09", "month": "2018-01", "amount": 24765.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "For a part-time Clean Air Fund administrator for the Air Quality Program."}, {"year": 2019, "date": "2018-01-09", "month": "2018-01", "amount": 15000.0, "cat1": "Operational Funding", "cat2": "Public Communication", "location": "Allegheny County", "org": "Air Quality Program", "desc": "For the Air Quality Program to run a half-day workshop for municipal officials on air quality topics."}, {"year": 2019, "date": "2019-03-06", "month": "2019-03", "amount": 120000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "To provide professional and technical support on an as-needed basis to the Air Quality Program for case analysis, data and technical support, legal support, and medical and toxicology consulting."}, {"year": 2019, "date": "2019-05-01", "month": "2019-05", "amount": 150000.0, "cat1": "Emission Reduction", "cat2": null, "location": "Allegheny County", "org": "Several small projects", "desc": "To fund several small projects ($10k - $30k) addressing emission reductions."}, {"year": 2019, "date": "2019-07-17", "month": "2019-07", "amount": 300000.0, "cat1": "Public Health/Medicine", "cat2": null, "location": "Allegheny County", "org": "UPMC Children\u2019s Hospital, Pitt GSPH", "desc": "To support UPMC Children\u2019s Hospital and Pitt GSPH developing an asthma registry for children and adolescents for surveillance and management of asthma in Allegheny County."}, {"year": 2019, "date": "2019-07-17", "month": "2019-07", "amount": 90000.0, "cat1": "Tree Planting", "cat2": null, "location": "Allegheny County Parks Department", "org": "Allegheny County Department of Parks", "desc": "To fund the Allegheny County Department of Parks for the purchase of 360 landscape trees, which will be planted at designated locations in the County's Parks over a two-year period."}, {"year": 2019, "date": "2019-11-06", "month": "2019-11", "amount": 627100.0, "cat1": "Emission Reduction", "cat2": null, "location": "Corrigan Dr. in South Park", "org": "ACHD", "desc": "County Department of Public Works: for solar lighting along Corrigan Dr. in South Park."}, {"year": 2020, "date": "2020-01-10", "month": "2020-01", "amount": 25000.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Allegheny County", "org": "Southwest Pennsylvania Air Quality Partnership", "desc": "To support the Southwest Pennsylvania Air Quality Partnership lawnmower exchange program."}, {"year": 2020, "date": "2020-01-10", "month": "2020-01", "amount": 9000.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Kamin Science Center", "desc": "To support the Carnegie Science Center Future Cities competition  ($3,000 per year for 3 years)."}, {"year": 2020, "date": "2020-01-10", "month": "2020-01", "amount": 7500.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Kamin Science Center", "desc": "Carnegie Science Center Pittsburgh Regional Science and Engineering fair support ($2,500 per year for 3 years)."}, {"year": 2020, "date": "2020-03-04", "month": "2020-03", "amount": 592822.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Air Quality Program 5% operations funding allocation for the year 2020."}, {"year": 2020, "date": "2020-03-04", "month": "2020-03", "amount": 384000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program+G15", "desc": "For air monitoring work and equipment supporting the Air Quality Program (relocation and upgrades at the Liberty Monitor site, back-up monitoring hardware, low-cost monitors, etc.)."}, {"year": 2020, "date": "2020-09-02", "month": "2020-09", "amount": 500000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "To provide professional and technical support on an as-needed basis to the Air Quality Program for case analysis, data and technical support, legal support, and medical and toxicology consulting."}, {"year": 2020, "date": "2020-09-02", "month": "2020-09", "amount": 210000.0, "cat1": "Operational Funding", "cat2": "Software", "location": "Allegheny County", "org": "Air Quality Program", "desc": "To update / develop software the Air Quality Program enforcement and permitting staff use."}, {"year": 2020, "date": "2020-09-02", "month": "2020-09", "amount": 59560.0, "cat1": "Tree Planting", "cat2": null, "location": "Carnegie Borough,  Churchill Borough", "org": "Plant Five for Life", "desc": "To plant 500 trees in various locations in the Carnegie and Churchill areas."}, {"year": 2020, "date": "2020-09-02", "month": "2020-09", "amount": 98000.0, "cat1": "Tree Planting", "cat2": null, "location": "Pittsburgh", "org": "Tree-Vitalize", "desc": "To plant 200 street trees in various low income areas."}, {"year": 2021, "date": "2021-03-03", "month": "2021-03", "amount": 578684.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Air Quality Program 5% operations funding allocation for the year 2021."}, {"year": 2021, "date": "2021-05-05", "month": "2021-05", "amount": 200000.0, "cat1": "Public Communication", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "To fund an RFP that will ask community-based organizations to seek small grant to conduct outreach aimed at increasing participation / sign-ups / awareness around the County's Allegheny Alerts system; titled the \"Air Ambassadors  Program\"; ACHD will be overseeing community partners."}, {"year": 2022, "date": "2022-05-04", "month": "2022-05", "amount": 30000.0, "cat1": "Research", "cat2": null, "location": "Allegheny County", "org": "University of Pittsburgh, Duquesne University, Carnegie Mellon University", "desc": "To design a health impact study covering the impacts of various pollutants involving ACHD in partnership with the University of Pittsburgh, Duquesne University, and Carnegie Mellon University."}, {"year": 2022, "date": "2022-11-02", "month": "2022-11", "amount": 539125.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "Air Quality Program", "desc": "Air Quality Program 5% operations funding allocation for the year 2022."}, {"year": 2020, "date": "2020-07-15", "month": "2020-07", "amount": 99995.0, "cat1": "Tree Planting", "cat2": "Education/Competition", "location": "Bethel Park School District, McKeesport Area School District, Woodland Hills School District, West Mifflin Area School District, South Fayette School District", "org": "Tree Pittsburgh", "desc": "Engage over 1000 students from 20 different schools in the Mon Valley over 2 years. Plant 1250 trees with customized tree care plan for each school. Partnership with five school districts: Bethel Park, McKeesport, Woodland Hills, West Mifflin, and South Fayette."}, {"year": 2020, "date": "2020-01-01", "month": "2020-01", "amount": 15000.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Kamin Science Center", "desc": "Annual funding for three years."}, {"year": 2020, "date": "2020-07-15", "month": "2020-07", "amount": 98000.0, "cat1": "Tree Planting", "cat2": null, "location": "Pittsburgh", "org": "Western Pennsylvania Conservancy", "desc": "Plant and maintain 75 trees."}, {"year": 2020, "date": "2020-09-02", "month": "2020-09", "amount": 500000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "ACHD", "desc": "Professional and technical support as needed for case analysis, technical expertise, legal support, and medical and toxicological consulting."}, {"year": 2020, "date": "2020-03-04", "month": "2020-03", "amount": 55000.0, "cat1": "Operational Funding", "cat2": null, "location": "Allegheny County", "org": "ACHD", "desc": "Hire a Clean Air and Environmental Health Fund Contract grant Administrator last year to help develop new processes and outreach strategies."}, {"year": 2020, "date": "2020-01-10", "month": "2020-01", "amount": 75000.0, "cat1": "Operational Funding", "cat2": "Public Communication", "location": "Allegheny County", "org": "Southwest Pennsylvania Air Quality Partnership", "desc": "Provide guidelines for individual actions to reduce exposure to pollution, provide alerts on high pollution days, and ozone and particulate forecasting for three years ($25,000 per year for 2021, 2022, and 2023)."}, {"year": 2020, "date": "2020-09-02", "month": "2020-09", "amount": 340554.0, "cat1": "Operational Funding", "cat2": "Research", "location": "Allegheny County", "org": "ACHD", "desc": "Purchase air monitoring equipment, cover sampling analysis costs, and provide lab analysis in support of the Air Quality Program conducting a study of odor and air toxics emissions and H2S in the Mon Valley."}, {"year": 2020, "date": "2020-01-01", "month": "2020-01", "amount": 548725.0, "cat1": "Operational Funding", "cat2": "Software", "location": "Allegheny County", "org": "enfoTech & Consulting Inc.", "desc": "Online portal to be created for air quality permitting and enforcement software."}, {"year": 2021, "date": "2021-05-05", "month": "2021-05", "amount": 200000.0, "cat1": "Public Communication", "cat2": null, "location": "Monongahela River Valley", "org": "Several small projects", "desc": "Nine organizations each work on individual projects to educate municipalities in the Mon Valley about air quality and get residents to sign up for Allegheny Alerts."}, {"year": 2021, "date": "2021-01-01", "month": "2021-01", "amount": 9941.0, "cat1": "Research", "cat2": null, "location": "Monongahela River Valley", "org": "Georgia Institute of Technology", "desc": "Develop an air quality forecasting program for the Mon Valley Episode Rule."}, {"year": 2021, "date": "2021-01-01", "month": "2021-01", "amount": 69956.0, "cat1": "Research", "cat2": null, "location": "Monongahela River Valley", "org": "Ramboll US Consulting", "desc": "H2S Analysis in Allegheny County with a focus within the Mon Valley."}, {"year": 2023, "date": "2023-09-06", "month": "2023-09", "amount": 9000.0, "cat1": "Education/Competition", "cat2": null, "location": "Kamin Science Center", "org": "Kamin Science Center", "desc": "Three years of annual funding to support the Carnegie Science Center's Pittsburgh Regional Future City Competition."}, {"year": 2023, "date": "2023-09-06", "month": "2023-09", "amount": 750000.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Monongahela River Valley", "org": "Steel Rivers Council of Governments", "desc": "Replace existing 2006 diesel powered street sweeper and purchase of an equivalent electric street sweeper and installation of electric vehicle charging station. "}, {"year": 2023, "date": "2023-09-06", "month": "2023-09", "amount": 700000.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Swissvale Borough", "org": "Swissvale Borough", "desc": "Replace existing 2016 diesel powered garbage truck and 2014 recycling truck and purchase of an equivalent electric garbage truck and recycling truck and installation of two electric vehicle charging stations at the borough's Public Works Department."}, {"year": 2023, "date": "2023-09-06", "month": "2023-09", "amount": 46000.0, "cat1": "Tree Planting", "cat2": null, "location": "Pittsburgh", "org": "Tree Pittsburgh", "desc": "Plant 75 caliper, balled, and burlap trees on school grounds, community parks, and right of ways within Steel Valley School District."}, {"year": 2023, "date": "2023-09-06", "month": "2023-09", "amount": 46000.0, "cat1": "Tree Planting", "cat2": null, "location": "Pittsburgh", "org": "Tree Pittsburgh", "desc": "Plant 75 caliper, balled, and burlap trees planted on school grounds, community parks, and right of ways within the Woodland Hills School District."}, {"year": 2023, "date": "2023-09-06", "month": "2023-09", "amount": 748339.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "West Mifflin Borough", "org": "West Mifflin Borough", "desc": "Decommission and replace existing 2007 diesel-powered refuse hauler truck and replace with electric rear-load garbage packer and installation of two electric vehicle charging stations and an electrical service upgrade at the vehicle site."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 46000.0, "cat1": "Tree Planting", "cat2": null, "location": "Wilkinsburg Borough", "org": "Wilkinsburg Shade Tree Commission", "desc": "Plant and maintain 50 Trees in Wilkinsburg."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 46000.0, "cat1": "Tree Planting", "cat2": null, "location": "Monongahela River Valley", "org": "Western Pennsylvania Conservancy", "desc": "Plant and maintain 45 trees in Monongahela River Valley communities."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 23094.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Brackenridge Borough", "org": "Brackenridge Borough", "desc": "Replace eleven gas powered pieces of municipal lawn equipment with electric models."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 43272.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Pitcairn Borough", "org": "Pitcairn Borough", "desc": "Replace 20 gas powered pieces of municipal lawn equipment with electric models."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 75000.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Braddock Borough, North Braddock Borough, Rankin Borough, East Pittsburgh Borough", "org": "Braddock Borough, North Braddock Borough, Rankin Borough, East Pittsburgh Borough", "desc": "Replace four gas powered pieces of municipal lawn equipment with electric models for the boroughs of Braddock, East Pittsburgh, North Braddock, and Rankin."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 800000.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Swissvale Borough", "org": "Swissvale Borough", "desc": "Replace a diesel powered street sweeper with an electric model."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 186789.0, "cat1": "Diesel Reduction/Electrification", "cat2": null, "location": "Munhall Borough", "org": "Munhall Borough", "desc": "Support the replacement of three diesel refuse trucks with electric models and charging\u00a0infrastructure."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 997450.0, "cat1": "Emission Reduction", "cat2": null, "location": "West Mifflin Borough", "org": "West Mifflin Borough", "desc": "Funding to install a 1 MWh battery storage system as part of a multi-municipality effort to install solar and battery storage systems at municipal buildings in Allegheny County."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 1000000.0, "cat1": "Emission Reduction", "cat2": null, "location": "Sharpsburg Borough", "org": "Sharpsburg Borough", "desc": "Funding to install a solar panel and battery storage system to offset the borough building's electrical usage and to provide backup power in the event of outages."}, {"year": 2024, "date": "2024-01-04", "month": "2024-01", "amount": 500000.0, "cat1": "Tree Planting", "cat2": "Emission Reduction", "location": "Etna Borough", "org": "Etna Borough", "desc": "Funding to assist the installation of solar panels, green building technologies, and tree planting at their new municipal office building."}];
+
+// State
+let mode = 'year';
+let selectedYears = new Set();
+let selectedCats = new Set();
+
+// Derived constants
+const ALL_YEARS = [...new Set(RAW_DATA.map(d => d.year))].sort((a,b) => a-b);
+const ALL_CATS = [...new Set(RAW_DATA.flatMap(d => [d.cat1, d.cat2]).filter(Boolean))].sort();
+
+// Ordinal date formatter
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDate();
+  const suffix = [11,12,13].includes(day) ? 'th' : {1:'st',2:'nd',3:'rd'}[day%10] || 'th';
+  return d.toLocaleDateString('en-US', {month:'long', year:'numeric'}).replace(/(\w+ )(\d{4})/, `$1${day}${suffix}, $2`);
+}
+
+function fmtMoney(n) {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(2).replace(/\.?0+$/,'') + 'M';
+  if (n >= 1000) return '$' + Math.round(n/1000) + 'K';
+  return '$' + n.toLocaleString();
+}
+
+function fmtFull(n) {
+  return '$' + n.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+// Init
+function init() {
+  ALL_YEARS.forEach(y => selectedYears.add(y));
+  ALL_CATS.forEach(c => selectedCats.add(c));
+  renderYearPills();
+  renderCatChips();
+  renderChart();
+  updateStats();
+}
+
+function renderYearPills() {
+  const container = document.getElementById('yearPills');
+  container.innerHTML = ALL_YEARS.map(y => `
+    <span class="year-pill ${selectedYears.has(y) ? 'active' : ''}" onclick="toggleYear(${y})">${y}</span>
+  `).join('');
+}
+
+function renderCatChips() {
+  const container = document.getElementById('categoryChips');
+  container.innerHTML = ALL_CATS.map(c => `
+    <span class="chip ${selectedCats.has(c) ? 'active' : ''}" onclick="toggleCat('${c.replace(/'/g,"\\'")}')">
+      <span class="dot"></span>${c}
+    </span>
+  `).join('');
+}
+
+function getFiltered() {
+  return RAW_DATA.filter(d =>
+    selectedYears.has(d.year) &&
+    (selectedCats.has(d.cat1) || (d.cat2 && selectedCats.has(d.cat2)))
+  );
+}
+
+function renderChart() {
+  const filtered = getFiltered();
+  if (!filtered.length) {
+    Plotly.newPlot('chartDiv', [], {
+      annotations: [{text:'No data for selection', xref:'paper', yref:'paper', x:0.5, y:0.5, showarrow:false, font:{size:16, color:'#999'}}],
+      plot_bgcolor:'white', paper_bgcolor:'white'
+    }, {responsive:true, displayModeBar:false});
+    return;
+  }
+
+  let xVals, yVals, texts, customdata;
+
+  if (mode === 'year') {
+    const byYear = {};
+    const grantsByYear = {};
+    filtered.forEach(d => {
+      byYear[d.year] = (byYear[d.year] || 0) + d.amount;
+      if (!grantsByYear[d.year]) grantsByYear[d.year] = [];
+      grantsByYear[d.year].push(d);
+    });
+    xVals = ALL_YEARS.filter(y => selectedYears.has(y));
+    yVals = xVals.map(y => byYear[y] || 0);
+    texts = xVals.map(y => {
+      const grants = grantsByYear[y] || [];
+      const show = grants.slice(0,4);
+      let t = show.map(g => `<b>${g.org}</b><br>${fmtFull(g.amount)}`).join('<br>—<br>');
+      if (grants.length > 4) t += `<br>— +${grants.length - 4} more —`;
+      t += `<br><br><i>Click to see all ${grants.length} grant${grants.length>1?'s':''}</i>`;
+      return t;
+    });
+    customdata = xVals.map(y => ({key: y, type: 'year'}));
+  } else {
+    const byMonth = {};
+    const grantsByMonth = {};
+    filtered.forEach(d => {
+      if (!d.month) return;
+      byMonth[d.month] = (byMonth[d.month] || 0) + d.amount;
+      if (!grantsByMonth[d.month]) grantsByMonth[d.month] = [];
+      grantsByMonth[d.month].push(d);
+    });
+    const months = Object.keys(byMonth).sort();
+    xVals = months;
+    yVals = months.map(m => byMonth[m]);
+    texts = months.map(m => {
+      const grants = grantsByMonth[m] || [];
+      const show = grants.slice(0,4);
+      let t = show.map(g => `<b>${g.org}</b><br>${fmtFull(g.amount)}`).join('<br>—<br>');
+      if (grants.length > 4) t += `<br>— +${grants.length - 4} more —`;
+      t += `<br><br><i>Click to see all ${grants.length} grant${grants.length>1?'s':''}</i>`;
+      return t;
+    });
+    customdata = months.map(m => ({key: m, type: 'month'}));
+  }
+
+const trace = {
+    x: xVals,
+    y: yVals,
+    type: 'scatter',
+    mode: 'lines+markers',
+    text: texts,
+    customdata: customdata,
+    hovertemplate: '<b>%{x}</b><br>Total: <b>%{y:$,.0f}</b><br><br>%{text}<extra></extra>',
+    line: { 
+        color: '#0172BC', // <- line color
+        width: 2.5 
+    },
+    marker: { 
+        color: '#0172BC',   // <- marker/point color
+        size: 9, 
+        symbol: 'circle', 
+        line: { color: 'white', width: 2 } 
+    },
+    fill: 'tozeroy',
+    fillcolor: 'rgba(1,114,188,0.15)', // <- semi-transparent GASP blue fill under line
+    hoverlabel: { 
+        bgcolor: 'rgba(1,114,188,0.1)',  // <- hover bubble background
+        font: { color: '#0172BC' }       // <- hover text color
+    }
+};
+
+  const layout = {
+    plot_bgcolor: 'white',
+    paper_bgcolor: 'white',
+    margin: { t: 20, r: 20, b: 50, l: 80 },
+    xaxis: {
+      title: mode === 'year' ? 'Year' : 'Month',
+      showgrid: true, gridcolor: '#eee', zeroline: false,
+      tickfont: { family: 'DM Sans', size: 12, color: '#555' },
+      tickangle: mode === 'month' ? -45 : 0
+    },
+    yaxis: {
+      title: 'Grant Amount (USD)',
+      showgrid: true, gridcolor: '#eee', zeroline: true,
+      tickformat: '$,.0f',
+      tickfont: { family: 'DM Sans', size: 11, color: '#555' }
+    },
+    hoverlabel: {
+      bgcolor: 'white',
+      bordercolor: '#0172BC',
+      font: { family: 'DM Sans', size: 12 }
+    },
+    font: { family: 'DM Sans' }
+  };
+
+  Plotly.newPlot('chartDiv', [trace], layout, {responsive: true, displayModeBar: false});
+
+  document.getElementById('chartDiv').on('plotly_click', function(data) {
+    const pt = data.points[0];
+    const cd = pt.customdata;
+    showModal(cd.key, cd.type);
+  });
+}
+
+function updateStats() {
+  const filtered = getFiltered();
+  const total = filtered.reduce((s, d) => s + d.amount, 0);
+  document.getElementById('statTotal').textContent = fmtMoney(total);
+  document.getElementById('statCount').textContent = filtered.length;
+
+  const byYear = {};
+  filtered.forEach(d => { byYear[d.year] = (byYear[d.year] || 0) + d.amount; });
+  const entries = Object.entries(byYear);
+  if (entries.length) {
+    const peak = entries.reduce((a,b) => b[1] > a[1] ? b : a);
+    document.getElementById('statPeak').textContent = peak[0];
+    document.getElementById('statPeakAmt').textContent = fmtMoney(peak[1]) + ' allocated';
+  } else {
+    document.getElementById('statPeak').textContent = '—';
+    document.getElementById('statPeakAmt').textContent = '';
+  }
+}
+
+function showModal(key, type) {
+  let grants, title;
+  if (type === 'year') {
+    grants = getFiltered().filter(d => d.year === key);
+    title = `Grants in ${key}`;
+  } else {
+    grants = getFiltered().filter(d => d.month === key);
+    const [yr, mo] = key.split('-');
+    const d = new Date(parseInt(yr), parseInt(mo)-1, 1);
+    title = `Grants in ${d.toLocaleDateString('en-US', {month:'long', year:'numeric'})}`;
+  }
+
+  const total = grants.reduce((s,d) => s + d.amount, 0);
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalTotal').textContent = `${grants.length} grant${grants.length!==1?'s':''} · Total: ${fmtFull(total)}`;
+
+  const body = document.getElementById('modalBody');
+  if (!grants.length) {
+    body.innerHTML = '<div class="no-data">No grants found for this time period.</div>';
+  } else {
+    body.innerHTML = grants.map(g => {
+  const tags = [g.cat1, g.cat2].filter(Boolean);
+
+  return `
+    <div class="grant-card">
+
+      <!-- Category + Amount inline -->
+      <div class="grant-top">
+        <div class="grant-tags">
+          ${tags.map(t => `<span class="grant-tag">${t}</span>`).join('')}
+        </div>
+        <div class="grant-amount">${fmtFull(g.amount)}</div>
+      </div>
+
+      ${g.date ? `<div class="grant-meta"><strong>Date Allocated:</strong> ${formatDate(g.date)}</div>` : ''}
+      ${g.location ? `<div class="grant-meta"><strong>Location:</strong> ${g.location}</div>` : ''}
+      ${g.org ? `<div class="grant-meta"><strong>Organization:</strong> ${g.org}</div>` : ''}
+      ${g.desc ? `<div class="grant-desc"><strong>Project Description:</strong> ${g.desc}</div>` : ''}
+
+    </div>
+  `;
+}).join('');
+  }
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// Controls
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnYear').classList.toggle('active', m === 'year');
+  document.getElementById('btnMonth').classList.toggle('active', m === 'month');
+  renderChart();
+}
+
+function toggleYear(y) {
+  if (selectedYears.has(y)) selectedYears.delete(y);
+  else selectedYears.add(y);
+  renderYearPills();
+  renderChart();
+  updateStats();
+}
+
+function selectAllYears() {
+  ALL_YEARS.forEach(y => selectedYears.add(y));
+  renderYearPills(); renderChart(); updateStats();
+}
+
+function selectNoneYears() {
+  selectedYears.clear();
+  renderYearPills(); renderChart(); updateStats();
+}
+
+function toggleCat(c) {
+  if (selectedCats.has(c)) selectedCats.delete(c);
+  else selectedCats.add(c);
+  renderCatChips(); renderChart(); updateStats();
+}
+
+function selectAllCats() {
+  ALL_CATS.forEach(c => selectedCats.add(c));
+  renderCatChips(); renderChart(); updateStats();
+}
+
+function selectNoneCats() {
+  selectedCats.clear();
+  renderCatChips(); renderChart(); updateStats();
+}
+
+init();
+</script>
+</body>
+</html>
