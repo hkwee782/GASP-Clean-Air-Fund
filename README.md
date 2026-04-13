@@ -21,6 +21,7 @@ Note: The map is hosted on Render's free tier. If the app has been inactive, it 
 | `map.py` | Main interactive map application built with Dash and Plotly. Displays grant locations on a map with filters by category, year, and location. |
 | `charts.ipynb` | Jupyter notebook containing all data visualizations and charts analyzing grant spending trends, categories, and organizations. |
 | `charts.html` | Exported HTML version of the charts for easy viewing without running code. |
+| `graph.html` | Interactive chart depicting grant allocation funding over time. Filter by year and project category, toggle between yearly and monthly views, and click any data point to view individual grant details. Open directly in any web browser. |
 | `FinalSheet.xlsx` | The cleaned grant allocation dataset covering 2015–2024, including grant amounts, locations, organizations, categories, and project descriptions. |
 | `RAWData.xlsx` | The raw, original data set containing grant allocations covering 2015–2024, including grant amounts, locations, organizations, categories, and project descriptions highlighted by color.|
 | `geo_cache.json` | Cached geographic boundary data from OpenStreetMap, used to speed up map loading. |
